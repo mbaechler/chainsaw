@@ -1,9 +1,20 @@
 package mb
 
+import zio.{UIO, ZIO}
 import zio.test.*
 import zio.test.Assertion.*
 
 object TreeSpec extends ZIOSpecDefault:
+
+  extension [T] (self: Tree[T])
+    def debugTree: UIO[Tree[T]] =
+      ZIO.debug(debugTree(self, 0)).as(self)
+    private def debugTree(tree: Tree[T], indent: Int): String =
+      val children =
+        tree.children match
+          case Nil => "[]"
+          case l => l.map(t => debugTree(t, indent + 2)).mkString("\n[ ", "\n, ", "\n]").indent(indent + 2)
+      s"""tree ${tree.label} $children"""
 
   def treeWithoutChild[R, T](labelGen: Gen[R, T]): Gen[R, Tree[T]] =
     labelGen.map(label => Tree(label))
@@ -42,6 +53,8 @@ object TreeSpec extends ZIOSpecDefault:
       Tree(label, children.map(_.tree))
     )
 
+  def counterGen: Gen[Any, Int] = Gen.fromIterable[Any, Int](LazyList.unfold(0)(i => Some(i, i + 1)))
+
   val spec = suite("Tree")(
     suite("count")(
       test("singleton count is 1") {
@@ -69,10 +82,13 @@ object TreeSpec extends ZIOSpecDefault:
     ),
     suite("foldLeftTest")(
       test("foldLeft hardcoded tree") {
-        assert(
-          Tree(1, Tree(2), Tree(3, Tree(4)), Tree(5, Tree(6, Tree(7), Tree(8))))
-            .foldLeft[List[Int]]((label, acc) => acc.appended(label), Nil)
-        )(equalTo(List(1, 2, 3, 4, 5, 6, 7, 8)))
+        for
+          tree <- Tree(1, Tree(2), Tree(3, Tree(4)), Tree(5, Tree(6, Tree(7), Tree(8)))).debugTree
+        yield
+          assert(
+            tree
+              .foldLeft[List[Int]]((label, acc) => acc.appended(label), Nil)
+          )(equalTo(List(1, 2, 3, 4, 5, 6, 7, 8)))
       },
       test("foldLeft should accumulate every node") {
         check(anyTree(Gen.const(()))) { generated =>
@@ -80,6 +96,16 @@ object TreeSpec extends ZIOSpecDefault:
             equalTo(generated.treeCount)
           )
         }
-      }
+      },
+      test("foldLeft should traverse the tree depth-first") {
+        check(anyTree(counterGen)) { generated =>
+          for
+            _ <- ZIO.debug(s"in $generated")
+            tree <- generated.tree.debugTree
+          yield assert(tree.foldLeft[List[Int]]((label, acc) => acc.appended(label), Nil))(
+            equalTo(List.range(0, generated.treeCount))
+          )
+        }
+      }@@ TestAspect.shrinks(0)
     )
   )
