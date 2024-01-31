@@ -2,18 +2,20 @@ package mb
 
 import mb.Tree.{MapAcc, Path, map2, mapAccumulateHelp}
 
-case class Tree[T](label: T, children: List[Tree[T]]):
+import java.util.Objects
+
+class Tree[T](val label: T, val children: List[Tree[T]]):
 
   def mapLabel(f: T => T): Tree[T] = replaceLabel(f(label))
 
-  def replaceLabel(newLabel: T): Tree[T] = copy(label = newLabel)
+  def replaceLabel(newLabel: T): Tree[T] = Tree(label = newLabel, children = children*)
 
   def mapChildren(f: List[Tree[T]] => List[Tree[T]]): Tree[T] = replaceChildren(
     f(children)
   )
 
   def replaceChildren(newChildren: List[Tree[T]]): Tree[T] =
-    copy(children = newChildren)
+    Tree(label = label, children = newChildren*)
 
   def prependChild(child: Tree[T]): Tree[T] = mapChildren(child :: _)
 
@@ -35,7 +37,7 @@ case class Tree[T](label: T, children: List[Tree[T]]):
 
   def filter(predicate: T => Boolean): Option[Tree[T]] =
     if predicate(label)
-    then Some(Tree(label, children = children.flatMap(_.filter(predicate))))
+    then Some(Tree(label, children = children.flatMap(_.filter(predicate))*))
     else None
 
   def indexedMap[U](f: (Int, T) => U): Tree[U] = {
@@ -49,7 +51,7 @@ case class Tree[T](label: T, children: List[Tree[T]]):
         label = path -> tree.label,
         children = tree.children.zipWithIndex.map((child, idx) =>
           zipWithPath(child, path.sub(idx))
-        )
+        )*
       )
     zipWithPath(this, Path(0))
 
@@ -60,6 +62,13 @@ case class Tree[T](label: T, children: List[Tree[T]]):
       updatedState,
       MapAcc(todo = children, label = updatedLabel)
     )
+
+  override def equals(obj: Any): Boolean =
+    obj match
+      case other: Tree[?] => this.label == other.label && this.children == other.children
+      case _ => false
+
+  override def hashCode(): Int = Objects.hash(label, children)
 
 object Tree:
 
@@ -90,9 +99,9 @@ object Tree:
           case set :: sets => foldlHelp(f, acc, set, sets)
           case Nil         => acc
 
-      case Tree(d, Nil) :: rest => foldlHelp(f, f(d, acc), rest, nextSets)
+      case tree :: rest if tree.children.isEmpty => foldlHelp(f, f(tree.label, acc), rest, nextSets)
 
-      case Tree(d, xs) :: rest => foldlHelp(f, f(d, acc), xs, rest :: nextSets)
+      case tree :: rest => foldlHelp(f, f(tree.label, acc), tree.children, rest :: nextSets)
 
   private def mapAccumulateHelp[S, T, U](
       f: (S, T) => (S, U),
@@ -102,14 +111,14 @@ object Tree:
   ): (S, Tree[U]) =
     acc.todo match
       case Nil =>
-        val node = Tree(acc.label, acc.done.reverse)
+        val node = Tree(acc.label, acc.done.reverse*)
         stack match
           case Nil => (state, node)
           case top :: rest =>
             mapAccumulateHelp(f, state, top.copy(done = node :: top.done), rest)
 
-      case Tree(d, Nil) :: rest =>
-        val (updatedState, updatedLabel) = f(state, d)
+      case tree :: rest if tree.children.isEmpty =>
+        val (updatedState, updatedLabel) = f(state, tree.label)
         mapAccumulateHelp(
           f,
           updatedState,
@@ -117,12 +126,12 @@ object Tree:
           stack
         )
 
-      case Tree(d, children) :: rest =>
-        val (updatedState, updatedLabel) = f(state, d)
+      case tree :: rest =>
+        val (updatedState, updatedLabel) = f(state, tree.label)
         mapAccumulateHelp(
           f,
           updatedState,
-          MapAcc(todo = children, label = updatedLabel),
+          MapAcc(todo = tree.children, label = updatedLabel),
           acc.copy(todo = rest) :: stack
         )
 
@@ -175,7 +184,7 @@ object Tree:
   ): (S, Tree[V]) =
     (acc.todoL, acc.todoR) match
       case (Nil, _) | (_, Nil) =>
-        val node = Tree(acc.label, acc.done.reverse)
+        val node = Tree(acc.label, acc.done.reverse*)
         stack match
           case Nil => (state, node)
           case top :: rest =>
@@ -186,8 +195,8 @@ object Tree:
               rest
             )
 
-      case (Tree(a, xs) :: restL, Tree(b, ys) :: restR) =>
-        val (state_, label_) = f(state, a, b)
-        val newAcc = Map2Acc(todoL = xs, todoR = ys, done = Nil, label = label_)
+      case (headL :: restL, headR :: restR) =>
+        val (state_, label_) = f(state, headL.label, headR.label)
+        val newAcc = Map2Acc(todoL = headL.children, todoR = headR.children, done = Nil, label = label_)
         val newStack = acc.copy(todoL = restL, todoR = restR) :: stack
         mapAccumulate2Help(f, state_, newAcc, newStack)

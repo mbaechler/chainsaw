@@ -49,19 +49,19 @@ object TreeCutTreesToLogsFoldRight extends ZIOAppDefault:
 
           case (🏡, (w: Wood) :: (h: Homes) :: others) =>
             Homes(
-              Tree(Log.🏡, w.logs.map(log => Tree(log))) :: h.trees
+              Tree(Log.🏡, w.logs.map(log => Tree(log))*) :: h.trees
             ) :: others
 
           case (🏡, (h: Homes) :: others) =>
             Homes(Tree(Log.🏡) :: h.trees) :: others
 
           case (🏡, (w: Wood) :: others) =>
-            Homes(Tree(Log.🏡, w.logs.map(log => Tree(log))) :: Nil) :: others
+            Homes(Tree(Log.🏡, w.logs.map(log => Tree(log))*) :: Nil) :: others
 
           case (🏡, others) => Homes(Tree(Log.🏡) :: Nil) :: others
 
           case (TypedHomes.`🏘️`, (h: Homes) :: Nil) =>
-            Root(Tree(Log.`🏘️`, h.trees)) :: Nil
+            Root(Tree(Log.`🏘️`, h.trees*)) :: Nil
 
           case (TypedHomes.`🏘️`, other) => ???
     }

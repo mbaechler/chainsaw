@@ -49,7 +49,7 @@ class Zipper[T](
       case crumb :: rest =>
         Some(
           Zipper(
-            focus = Tree(crumb.label, (before ::: focus :: after).reverse),
+            focus = Tree(crumb.label, (before ::: focus :: after).reverse*),
             before = crumb.before,
             after = crumb.after,
             crumbs = rest
@@ -160,7 +160,7 @@ class Zipper[T](
       case (crumb :: rest, before, after) =>
         Some(
           Zipper(
-            focus = Tree(crumb.label, before ::: after),
+            focus = Tree(crumb.label, before ::: after*),
             before = crumb.before,
             after = crumb.after,
             crumbs = rest

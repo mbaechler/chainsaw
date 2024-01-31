@@ -39,7 +39,7 @@ object TreeSpec extends ZIOSpecDefault:
     for
       children <- Gen.listOfN(count)(treeWithoutChild(labelGen))
       label <- labelGen
-    yield Tree(label, children = children)
+    yield Tree(label, children = children*)
 
   case class GeneratedTree[T](treeCount: Int, tree: Tree[T])
 
@@ -54,7 +54,7 @@ object TreeSpec extends ZIOSpecDefault:
       )
     yield GeneratedTree(
       1 + children.map(_.treeCount).sum,
-      Tree(label, children.map(_.tree))
+      Tree(label, children.map(_.tree)*)
     )
 
   def counterGen: Gen[Any, Int] =
