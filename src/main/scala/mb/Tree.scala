@@ -233,11 +233,7 @@ object Tree:
         val newStack = acc.copy(todoL = l.tail, todoR = r.tail) :: stack
         mapAccumulate2Help(f, state_, newAcc, newStack)
 
-class LazyTree[T](override val label: T, override val children: Seq[Tree[T]])
-    extends Tree[T]:
-  override def factory[U]: (U, List[Tree[U]]) => Tree[U] = ConstTree.apply
-
 object LazyTree:
-  def unfold[S, T](s: S)(f: S => (T, LazyList[S])): LazyTree[T] =
+  def unfold[S, T](s: S)(f: S => (T, LazyList[S])): ConstTree[T] =
     val (label, seeds) = f(s)
-    LazyTree(label, children = seeds.map(subSeed => unfold(subSeed)(f)))
+    ConstTree(label, children = seeds.map(subSeed => unfold(subSeed)(f)))
