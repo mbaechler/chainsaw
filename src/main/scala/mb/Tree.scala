@@ -3,23 +3,31 @@ package mb
 import mb.Tree.{MapAcc, Path, map2, mapAccumulateHelp}
 
 import java.util.Objects
+import scala.annotation.tailrec
 
-class Tree[T](val label: T, val children: List[Tree[T]]):
+trait Tree[T]:
+
+  def label: T
+
+  def children: Seq[Tree[T]]
+
+  def factory[U]: (U, List[Tree[U]]) => Tree[U]
 
   def mapLabel(f: T => T): Tree[T] = replaceLabel(f(label))
 
-  def replaceLabel(newLabel: T): Tree[T] = Tree(label = newLabel, children = children*)
+  def replaceLabel(newLabel: T): Tree[T] =
+    Tree(label = newLabel, children = children*)
 
-  def mapChildren(f: List[Tree[T]] => List[Tree[T]]): Tree[T] = replaceChildren(
+  def mapChildren(f: Seq[Tree[T]] => Seq[Tree[T]]): Tree[T] = replaceChildren(
     f(children)
   )
 
-  def replaceChildren(newChildren: List[Tree[T]]): Tree[T] =
+  def replaceChildren(newChildren: Seq[Tree[T]]): Tree[T] =
     Tree(label = label, children = newChildren*)
 
-  def prependChild(child: Tree[T]): Tree[T] = mapChildren(child :: _)
+  def prependChild(child: Tree[T]): Tree[T] = mapChildren(child +: _)
 
-  def appendChild(child: Tree[T]): Tree[T] = mapChildren(_ ::: child :: Nil)
+  def appendChild(child: Tree[T]): Tree[T] = mapChildren(_ :+ child)
 
   def foldLeft[U](f: (T, U) => U, acc: U): U =
     Tree.foldlHelp(f, acc, List(this), List.empty)
@@ -60,17 +68,26 @@ class Tree[T](val label: T, val children: List[Tree[T]]):
     mapAccumulateHelp(
       f,
       updatedState,
-      MapAcc(todo = children, label = updatedLabel)
+      MapAcc(todo = children.toList, label = updatedLabel)
     )
 
   override def equals(obj: Any): Boolean =
     obj match
-      case other: Tree[?] => this.label == other.label && this.children == other.children
+      case other: Tree[?] =>
+        this.label == other.label && this.children == other.children
       case _ => false
 
   override def hashCode(): Int = Objects.hash(label, children)
 
+case class ConstTree[T](
+    override val label: T,
+    override val children: Seq[Tree[T]]
+) extends Tree[T]:
+  override def factory[U]: (U, List[Tree[U]]) => Tree[U] = Tree.factory
+
 object Tree:
+
+  def factory[T]: (T, List[Tree[T]]) => Tree[T] = ConstTree.apply
 
   case class Path private (elements: Seq[Int]):
     def sub(index: Int): Path = Path(elements :+ index)
@@ -85,29 +102,33 @@ object Tree:
   )
 
   def apply[T](label: T, children: Tree[T]*): Tree[T] =
-    new Tree(label, List(children*))
+    new ConstTree(label, List(children*))
 
+  @tailrec
   private def foldlHelp[T, U](
       f: (T, U) => U,
       acc: U,
       trees: List[Tree[T]],
-      nextSets: List[List[Tree[T]]]
+      nextSets: List[Seq[Tree[T]]]
   ): U =
     trees match
       case Nil =>
         nextSets match
-          case set :: sets => foldlHelp(f, acc, set, sets)
+          case set :: sets => foldlHelp(f, acc, set.toList, sets)
           case Nil         => acc
 
-      case tree :: rest if tree.children.isEmpty => foldlHelp(f, f(tree.label, acc), rest, nextSets)
+      case tree :: rest if tree.children.isEmpty =>
+        foldlHelp(f, f(tree.label, acc), rest, nextSets)
 
-      case tree :: rest => foldlHelp(f, f(tree.label, acc), tree.children, rest :: nextSets)
+      case tree :: rest =>
+        foldlHelp(f, f(tree.label, acc), tree.children.toList, rest :: nextSets)
 
+  @tailrec
   private def mapAccumulateHelp[S, T, U](
       f: (S, T) => (S, U),
       state: S,
       acc: MapAcc[T, U],
-      stack: List[MapAcc[T, U]] = Nil
+      stack: Seq[MapAcc[T, U]] = Nil
   ): (S, Tree[U]) =
     acc.todo match
       case Nil =>
@@ -131,13 +152,13 @@ object Tree:
         mapAccumulateHelp(
           f,
           updatedState,
-          MapAcc(todo = tree.children, label = updatedLabel),
-          acc.copy(todo = rest) :: stack
+          MapAcc(todo = tree.children.toList, label = updatedLabel),
+          acc.copy(todo = rest) :: stack.toList
         )
 
   case class Map2Acc[T, U, V](
-      todoL: List[Tree[T]],
-      todoR: List[Tree[U]],
+      todoL: Seq[Tree[T]],
+      todoR: Seq[Tree[U]],
       done: List[Tree[V]],
       label: V
   )
@@ -173,9 +194,15 @@ object Tree:
   ): (S, Tree[V]) =
     val (s, z) = f(state, tl.label, tr.label)
     val acc =
-      Map2Acc(todoL = tl.children, todoR = tr.children, done = Nil, label = z)
+      Map2Acc(
+        todoL = tl.children,
+        todoR = tr.children,
+        done = Nil,
+        label = z
+      )
     mapAccumulate2Help(f, s, acc, Nil)
 
+  @tailrec
   private def mapAccumulate2Help[S, T, U, V](
       f: (S, T, U) => (S, V),
       state: S,
@@ -183,7 +210,7 @@ object Tree:
       stack: List[Map2Acc[T, U, V]]
   ): (S, Tree[V]) =
     (acc.todoL, acc.todoR) match
-      case (Nil, _) | (_, Nil) =>
+      case (l, r) if l.isEmpty || r.isEmpty =>
         val node = Tree(acc.label, acc.done.reverse*)
         stack match
           case Nil => (state, node)
@@ -195,8 +222,22 @@ object Tree:
               rest
             )
 
-      case (headL :: restL, headR :: restR) =>
-        val (state_, label_) = f(state, headL.label, headR.label)
-        val newAcc = Map2Acc(todoL = headL.children, todoR = headR.children, done = Nil, label = label_)
-        val newStack = acc.copy(todoL = restL, todoR = restR) :: stack
+      case (l, r) =>
+        val (state_, label_) = f(state, l.head.label, r.head.label)
+        val newAcc = Map2Acc(
+          todoL = l.head.children,
+          todoR = r.head.children,
+          done = Nil,
+          label = label_
+        )
+        val newStack = acc.copy(todoL = l.tail, todoR = r.tail) :: stack
         mapAccumulate2Help(f, state_, newAcc, newStack)
+
+class LazyTree[T](override val label: T, override val children: Seq[Tree[T]])
+    extends Tree[T]:
+  override def factory[U]: (U, List[Tree[U]]) => Tree[U] = ConstTree.apply
+
+object LazyTree:
+  def unfold[S, T](s: S)(f: S => (T, LazyList[S])): LazyTree[T] =
+    val (label, seeds) = f(s)
+    LazyTree(label, children = seeds.map(subSeed => unfold(subSeed)(f)))

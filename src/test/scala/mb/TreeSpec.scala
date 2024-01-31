@@ -133,12 +133,20 @@ object TreeSpec extends ZIOSpecDefault:
         val actual = input.filter(label => label == "a")
         assert(actual)(isSome(equalTo(Tree("a"))))
       },
-      test("filter cutting after second level should not be more than 2 level deep") {
-        check(anyTree()) { input  =>
-          val actual = input.tree.zipWithPath.filter((path, _) => path.elements.sizeIs <= 3).get
-          assert(actual.flatten)(not(exists(hasField("path", _._1.elements, hasSize(isGreaterThan(3))))))
+      test(
+        "filter cutting after second level should not be more than 2 level deep"
+      ) {
+        check(anyTree()) { input =>
+          val actual = input.tree.zipWithPath
+            .filter((path, _) => path.elements.sizeIs <= 3)
+            .get
+          assert(actual.flatten)(
+            not(
+              exists(hasField("path", _._1.elements, hasSize(isGreaterThan(3))))
+            )
+          )
         }
-      },
+      }
     ),
     suite("zipWithPath")(
       test("should zip singleton with [0]") {
@@ -155,6 +163,59 @@ object TreeSpec extends ZIOSpecDefault:
             equalTo(List.range(0, 10).map(i => Path(0, i)))
           )
         }
+      }
+    ),
+    suite("unfold")(
+      test("singleton") {
+        assert(LazyTree.unfold(Path(0))(path => path -> LazyList.empty))(
+          equalTo(Tree(Path(0)))
+        )
+      },
+      test("single level tree") {
+        assert(
+          LazyTree.unfold(Path(0))(path =>
+            path -> (if path.elements.sizeIs < 2 then
+                       LazyList.range(0, 5).map(i => path.sub(i))
+                     else LazyList.empty)
+          )
+        )(
+          equalTo(
+            Tree(
+              Path(0),
+              Tree(Path(0, 0)),
+              Tree(Path(0, 1)),
+              Tree(Path(0, 2)),
+              Tree(Path(0, 3)),
+              Tree(Path(0, 4))
+            )
+          )
+        )
+      },
+      test("unfold should be able to replicate zipWithPath feature") {
+        check(anyTree()) { input =>
+          val unfolded = LazyTree.unfold(Path(0))(path =>
+            path -> LazyList.iterate(0)(_ + 1).map(idx => path.sub(idx))
+          )
+          val zipped = input.tree.zipWithPath.map(_._1)
+          assert(
+            Tree.map2((p1: Path, p2: Path) => p1 == p2, unfolded, zipped).flatten
+          )(not(contains(false)))
+        }
+      },
+      test("unfold should generate a path tree") {
+        val input = Tree((), Tree((), Tree(())), Tree(()))
+        val unfolded = LazyTree.unfold(Path(0))(path =>
+          path -> LazyList.iterate(0)(_ + 1).map(idx => path.sub(idx))
+        )
+        assert(Tree.map2((p1: Path, p2: Unit) => p1, unfolded, input))(
+          equalTo(
+            Tree(
+              Path(0),
+              Tree(Path(0, 0), Tree(Path(0, 0, 0))),
+              Tree(Path(0, 1))
+            )
+          )
+        )
       }
     )
   )

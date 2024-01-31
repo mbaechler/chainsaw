@@ -139,7 +139,7 @@ class Zipper[T](
 
   def label: T = tree.label
 
-  def children: List[Tree[T]] =
+  def children: Seq[Tree[T]] =
     tree.children
 
   def siblingsBeforeFocus: List[Tree[T]] =
