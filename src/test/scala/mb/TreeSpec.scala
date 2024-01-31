@@ -1,19 +1,23 @@
 package mb
 
+import mb.Tree.Path
 import zio.{UIO, ZIO}
 import zio.test.*
 import zio.test.Assertion.*
 
 object TreeSpec extends ZIOSpecDefault:
 
-  extension [T] (self: Tree[T])
+  extension [T](self: Tree[T])
     def debugTree: UIO[Tree[T]] =
       ZIO.debug(debugTree(self, 0)).as(self)
     private def debugTree(tree: Tree[T], indent: Int): String =
       val children =
         tree.children match
           case Nil => "[]"
-          case l => l.map(t => debugTree(t, indent + 2)).mkString("\n[ ", "\n, ", "\n]").indent(indent + 2)
+          case l =>
+            l.map(t => debugTree(t, indent + 2))
+              .mkString("\n[ ", "\n, ", "\n]")
+              .indent(indent + 2)
       s"""tree ${tree.label} $children"""
 
   def treeWithoutChild[R, T](labelGen: Gen[R, T]): Gen[R, Tree[T]] =
@@ -40,7 +44,7 @@ object TreeSpec extends ZIOSpecDefault:
   case class GeneratedTree[T](treeCount: Int, tree: Tree[T])
 
   def anyTree[R, T](
-      labelGen: Gen[R, T]
+      labelGen: Gen[R, T] = Gen.const(())
   ): Gen[R, GeneratedTree[T]] =
     for
       label <- labelGen
@@ -49,11 +53,12 @@ object TreeSpec extends ZIOSpecDefault:
         Gen.listOfBounded(0, 10)(anyTree(labelGen)) -> 1
       )
     yield GeneratedTree(
-       1 + children.map(_.treeCount).sum,
+      1 + children.map(_.treeCount).sum,
       Tree(label, children.map(_.tree))
     )
 
-  def counterGen: Gen[Any, Int] = Gen.fromIterable[Any, Int](LazyList.unfold(0)(i => Some(i, i + 1)))
+  def counterGen: Gen[Any, Int] =
+    Gen.fromIterable[Any, Int](LazyList.unfold(0)(i => Some(i, i + 1)))
 
   val spec = suite("Tree")(
     suite("count")(
@@ -82,13 +87,16 @@ object TreeSpec extends ZIOSpecDefault:
     ),
     suite("foldLeftTest")(
       test("foldLeft hardcoded tree") {
-        for
-          tree <- Tree(1, Tree(2), Tree(3, Tree(4)), Tree(5, Tree(6, Tree(7), Tree(8)))).debugTree
-        yield
-          assert(
-            tree
-              .foldLeft[List[Int]]((label, acc) => acc.appended(label), Nil)
-          )(equalTo(List(1, 2, 3, 4, 5, 6, 7, 8)))
+        for tree <- Tree(
+            1,
+            Tree(2),
+            Tree(3, Tree(4)),
+            Tree(5, Tree(6, Tree(7), Tree(8)))
+          ).debugTree
+        yield assert(
+          tree
+            .foldLeft[List[Int]]((label, acc) => acc.appended(label), Nil)
+        )(equalTo(List(1, 2, 3, 4, 5, 6, 7, 8)))
       },
       test("foldLeft should accumulate every node") {
         check(anyTree(Gen.const(()))) { generated =>
@@ -100,12 +108,53 @@ object TreeSpec extends ZIOSpecDefault:
       test("foldLeft should traverse the tree depth-first") {
         check(anyTree(counterGen)) { generated =>
           for
-            _ <- ZIO.debug(s"in $generated")
+            _ <- ZIO.debug(s"in ${generated.tree}")
             tree <- generated.tree.debugTree
-          yield assert(tree.foldLeft[List[Int]]((label, acc) => acc.appended(label), Nil))(
+          yield assert(
+            tree.foldLeft[List[Int]]((label, acc) => acc.appended(label), Nil)
+          )(
             equalTo(List.range(0, generated.treeCount))
           )
         }
-      }@@ TestAspect.shrinks(0)
+      } @@ TestAspect.shrinks(0) @@ TestAspect.ignore
+    ),
+    suite("filter")(
+      test("filter with always false on single node should return None") {
+        val actual = Tree("a").filter(_ => false)
+        assert(actual)(isNone)
+      },
+      test("filter with always true on single node should return same tree") {
+        val input = Tree("a")
+        val actual = input.filter(_ => true)
+        assert(actual)(isSome(equalTo(input)))
+      },
+      test("filter returning false for second level should return the root") {
+        val input = Tree("a", Tree("b"))
+        val actual = input.filter(label => label == "a")
+        assert(actual)(isSome(equalTo(Tree("a"))))
+      },
+      test("filter cutting after second level should not be more than 2 level deep") {
+        check(anyTree()) { input  =>
+          val actual = input.tree.zipWithPath.filter((path, _) => path.elements.sizeIs <= 3).get
+          assert(actual.flatten)(not(exists(hasField("path", _._1.elements, hasSize(isGreaterThan(3))))))
+        }
+      },
+    ),
+    suite("zipWithPath")(
+      test("should zip singleton with [0]") {
+        val actual = Tree("a").zipWithPath
+        assert(actual)(equalTo(Tree(Path(0) -> "a")))
+      },
+      test("should zip second level with [0, 0]") {
+        val actual = Tree("a", Tree("b")).zipWithPath
+        assert(actual)(equalTo(Tree(Path(0) -> "a", Tree(Path(0, 0) -> "b"))))
+      },
+      test("should zip second level with contiguous indices") {
+        check(treeWithNChildren(Gen.const("a"), 10)) { tree =>
+          assert(tree.zipWithPath.children.map(_.label._1))(
+            equalTo(List.range(0, 10).map(i => Path(0, i)))
+          )
+        }
+      }
     )
   )
