@@ -1,9 +1,12 @@
 package mb
 
+import cats.implicits.*
 import mb.Tree.Path
-import zio.{UIO, ZIO}
+import zio.interop.*
+import zio.interop.catz.core.*
 import zio.test.*
 import zio.test.Assertion.*
+import zio.{UIO, ZIO}
 
 object TreeSpec extends ZIOSpecDefault:
 
@@ -95,12 +98,12 @@ object TreeSpec extends ZIOSpecDefault:
           ).debugTree
         yield assert(
           tree
-            .foldLeft[List[Int]]((label, acc) => acc.appended(label), Nil)
+            .foldLeft(List.empty[Int])((label, acc) => acc.appended(label))
         )(equalTo(List(1, 2, 3, 4, 5, 6, 7, 8)))
       },
       test("foldLeft should accumulate every node") {
         check(anyTree(Gen.const(()))) { generated =>
-          assert(generated.tree.foldLeft[Int]((_, acc) => acc + 1, 0))(
+          assert(generated.tree.foldLeft[Int](0)((_, acc) => acc + 1))(
             equalTo(generated.treeCount)
           )
         }
@@ -111,7 +114,7 @@ object TreeSpec extends ZIOSpecDefault:
             _ <- ZIO.debug(s"in ${generated.tree}")
             tree <- generated.tree.debugTree
           yield assert(
-            tree.foldLeft[List[Int]]((label, acc) => acc.appended(label), Nil)
+            tree.foldLeft(List.empty[Int])((label, acc) => acc.appended(label))
           )(
             equalTo(List.range(0, generated.treeCount))
           )
@@ -143,6 +146,38 @@ object TreeSpec extends ZIOSpecDefault:
           assert(actual.flatten)(
             not(
               exists(hasField("path", _._1.elements, hasSize(isGreaterThan(3))))
+            )
+          )
+        }
+      }
+    ),
+    suite("collect")(
+      test(
+        "collect with PartialFunction.empty on single node should return None"
+      ) {
+        val actual = Tree("a").collect(PartialFunction.empty)
+        assert(actual)(isNone)
+      },
+      test("collect with identity on single node should return same tree") {
+        val input = Tree("a")
+        val actual = input.collect(x => x)
+        assert(actual)(isSome(equalTo(input)))
+      },
+      test("collect matching only root should return the root") {
+        val input = Tree("a", Tree("b"))
+        val actual = input.collect { case "a" => true }
+        assert(actual)(isSome(equalTo(Tree(true))))
+      },
+      test(
+        "collect cutting after second level should not be more than 2 level deep"
+      ) {
+        check(anyTree()) { input =>
+          val actual = input.tree.zipWithPath.collect {
+            case (path, _) if path.elements.sizeIs <= 3 => path
+          }.get
+          assert(actual.flatten)(
+            not(
+              exists(hasField("path", _.elements, hasSize(isGreaterThan(3))))
             )
           )
         }
@@ -198,7 +233,9 @@ object TreeSpec extends ZIOSpecDefault:
           )
           val zipped = input.tree.zipWithPath.map(_._1)
           assert(
-            Tree.map2((p1: Path, p2: Path) => p1 == p2, unfolded, zipped).flatten
+            Tree
+              .map2((p1: Path, p2: Path) => p1 == p2, unfolded, zipped)
+              .flatten
           )(not(contains(false)))
         }
       },
@@ -216,6 +253,14 @@ object TreeSpec extends ZIOSpecDefault:
             )
           )
         )
+      }
+    ),
+    suite("effect")(
+      test("traverse") {
+        import mb.given
+        val input = Tree(0, Tree(1, Tree(2)), Tree(3))
+        for result <- input.traverse[UIO, Int](i => ZIO.succeed(i + 1))
+        yield assert(result)(equalTo(Tree(1, Tree(2, Tree(3)), Tree(4))))
       }
     )
   )

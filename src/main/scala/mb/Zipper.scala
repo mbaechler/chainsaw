@@ -2,10 +2,8 @@ package mb
 
 import mb.Zipper.Crumb
 
-import scala.annotation.tailrec
-
 object Zipper:
-  
+
   case class Crumb[T](label: T, before: List[Tree[T]], after: List[Tree[T]])
 
   def fromTree[T](tree: Tree[T]): Zipper[T] =
@@ -126,15 +124,18 @@ class Zipper[T](
         )
 
   def findNext(predicate: T => Boolean): Option[Zipper[T]] =
-    LazyList.unfold(this)(s => s.forward.map(s -> _))
+    LazyList
+      .unfold(this)(s => s.forward.map(s -> _))
       .find(zipper => predicate(zipper.label))
 
   def findPrevious(predicate: T => Boolean): Option[Zipper[T]] =
-    LazyList.unfold(this)(s => s.backward.map(s -> _))
+    LazyList
+      .unfold(this)(s => s.backward.map(s -> _))
       .find(zipper => predicate(zipper.label))
-  
+
   def findFromRoot(predicate: T => Boolean): Option[Zipper[T]] =
-    LazyList.unfold(root)(s => s.forward.map(s -> _))
+    LazyList
+      .unfold(root)(s => s.forward.map(s -> _))
       .find(zipper => predicate(zipper.label))
 
   def label: T = tree.label

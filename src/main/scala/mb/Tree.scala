@@ -1,9 +1,30 @@
 package mb
 
-import mb.Tree.{MapAcc, Path, map2, mapAccumulateHelp}
+import cats.{Applicative, Eval, Traverse}
+import mb.Tree.{MapAcc, Path, mapAccumulateHelp}
 
 import java.util.Objects
 import scala.annotation.tailrec
+
+import cats.implicits.*
+
+given Traverse[Tree] = new Traverse[Tree]:
+  override def traverse[G[_]: Applicative, A, B](fa: Tree[A])(
+      f: A => G[B]
+  ): G[Tree[B]] =
+    val gLabel = f(fa.label)
+    val gChildren = fa.children.traverse(ta => ta.traverse(f))
+
+    gLabel
+      .product(gChildren)
+      .map((label, children) => Tree(label, children*))
+
+  override def foldLeft[A, B](fa: Tree[A], b: B)(f: (B, A) => B): B =
+    fa.foldLeft(b)((b, a) => f(a, b))
+
+  override def foldRight[A, B](fa: Tree[A], lb: Eval[B])(
+      f: (A, Eval[B]) => Eval[B]
+  ): Eval[B] = fa.foldRight((a, lb) => f(a, lb), lb)
 
 trait Tree[T]:
 
@@ -29,14 +50,14 @@ trait Tree[T]:
 
   def appendChild(child: Tree[T]): Tree[T] = mapChildren(_ :+ child)
 
-  def foldLeft[U](f: (T, U) => U, acc: U): U =
+  def foldLeft[U](acc: U)(f: (T, U) => U): U =
     Tree.foldlHelp(f, acc, List(this), List.empty)
 
   def foldRight[U](f: (T, U) => U, acc: U): U =
-    foldLeft[List[T]]((t, l) => t :: l, List.empty[T])
+    foldLeft(List.empty[T])((t, l) => t :: l)
       .foldLeft(acc)((acc, t) => f(t, acc))
 
-  def count: Int = foldLeft((_, count) => count + 1, 0)
+  def count: Int = foldLeft(0)((_, count) => count + 1)
 
   def flatten: List[T] = foldRight(_ :: _, List.empty)
 
@@ -47,6 +68,9 @@ trait Tree[T]:
     if predicate(label)
     then Some(Tree(label, children = children.flatMap(_.filter(predicate))*))
     else None
+
+  def collect[U](partialFunction: PartialFunction[T, U]): Option[Tree[U]] =
+    filter(partialFunction.isDefinedAt).map(t => t.map(partialFunction.apply))
 
   def indexedMap[U](f: (Int, T) => U): Tree[U] = {
     val function: (Int, T) => (Int, U) = (idx, elem) => (idx + 1, f(idx, elem))
@@ -102,7 +126,7 @@ object Tree:
   )
 
   def apply[T](label: T, children: Tree[T]*): Tree[T] =
-    new ConstTree(label, List(children*))
+    ConstTree(label, List(children*))
 
   @tailrec
   private def foldlHelp[T, U](

@@ -1,6 +1,8 @@
 package mb
 
-import zio.{ZIO, ZIOAppDefault}
+import mb.Helpers.*
+import mb.Helpers.TreeHelpers.*
+import zio.ZIOAppDefault
 
 object TreeCutTreesToLogsFoldRight extends ZIOAppDefault:
 
@@ -65,8 +67,8 @@ object TreeCutTreesToLogsFoldRight extends ZIOAppDefault:
 
           case (TypedHomes.`🏘️`, other) => ???
     }
-
-    val (Root(logs) :: Nil) = trees.foldRight(`🪚`, List.empty)
+    
+    val (Root(logs) :: Nil) = trees.foldRight(`🪚`, List.empty): @unchecked
 
     given Show[TypedHomes] = {
       case TypedHomes.🌳    => "🌳"
@@ -82,5 +84,5 @@ object TreeCutTreesToLogsFoldRight extends ZIOAppDefault:
       case Log.🏡    => "🏡"
     }
 
-    ZIO.debug("before") *> ZIO.debug(show(trees)) *> ZIO.debug("after") *> ZIO
-      .debug(show(logs))
+    trees.show(title = "before") *>
+      logs.show(title = "after")
