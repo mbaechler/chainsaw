@@ -9,23 +9,19 @@ object MapList extends zio.ZIOAppDefault:
     case 🌴
     case 🌲
 
-  object TypedTree:
-    given Show[TypedTree] = {
-      case 🌳 => "🌳"
-      case 🌴 => "🌴"
-      case 🌲 => "🌲"
-    }
-
   import TypedTree.*
 
-  override def run =
+  given Show[TypedTree] = {
+    case 🌳 => "🌳"
+    case 🌴 => "🌴"
+    case 🌲 => "🌲"
+  }
 
+  val run =
     val parse: String => TypedTree = {
       case "Oak"       => 🌳
       case "PalmTree"  => 🌴
       case "Evergreen" => 🌲
     }
-
     val result = List("Oak", "PalmTree", "Evergreen").map(parse)
-
     result.show
