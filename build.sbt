@@ -1,10 +1,10 @@
 ThisBuild / scalaVersion := "3.3.1"
-ThisBuild / version := "0.1.0-SNAPSHOT"
+ThisBuild / version := "0.1.0"
 ThisBuild / organization := "fr.baechler-craftsmanship"
 ThisBuild / organizationName := "chainsaw"
 
 
-ThisBuild / githubWorkflowJavaVersions += JavaSpec.temurin("17")
+ThisBuild / githubWorkflowJavaVersions := Seq(JavaSpec.temurin("17"))
 
 inThisBuild(List(
   homepage := Some(url("https://github.com/mbaechler/chainsaw")),
@@ -35,9 +35,6 @@ ThisBuild / githubWorkflowPublish := Seq(
     )
   )
 )
-
-ThisBuild / sonatypeCredentialHost := "s01.oss.sonatype.org"
-sonatypeRepository := "https://s01.oss.sonatype.org/service/local"
 
 lazy val root = (project in file("."))
   .settings(
