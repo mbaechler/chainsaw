@@ -1,6 +1,6 @@
-package mb
+package fr.bc.chainsaw
 
-import Helpers.ListHelpers.*
+import fr.bc.chainsaw.Helpers.ListHelpers.*
 
 object MapList extends zio.ZIOAppDefault:
 

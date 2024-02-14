@@ -1,12 +1,11 @@
-package mb
+package fr.bc.chainsaw
 
+import cats.implicits.*
 import cats.{Applicative, Eval, Traverse}
-import mb.Tree.{MapAcc, Path, mapAccumulateHelp}
+import fr.bc.chainsaw.Tree.{MapAcc, Path, mapAccumulateHelp}
 
 import java.util.Objects
 import scala.annotation.tailrec
-
-import cats.implicits.*
 
 given Traverse[Tree] = new Traverse[Tree]:
   override def traverse[G[_]: Applicative, A, B](fa: Tree[A])(
@@ -24,7 +23,7 @@ given Traverse[Tree] = new Traverse[Tree]:
 
   override def foldRight[A, B](fa: Tree[A], lb: Eval[B])(
       f: (A, Eval[B]) => Eval[B]
-  ): Eval[B] = fa.foldRight((a, lb) => f(a, lb), lb)
+  ): Eval[B] = fa.foldRight(lb)((a, lb) => f(a, lb))
 
 trait Tree[T]:
 
@@ -53,13 +52,13 @@ trait Tree[T]:
   def foldLeft[U](acc: U)(f: (T, U) => U): U =
     Tree.foldlHelp(f, acc, List(this), List.empty)
 
-  def foldRight[U](f: (T, U) => U, acc: U): U =
+  def foldRight[U](acc: U)(f: (T, U) => U): U =
     foldLeft(List.empty[T])((t, l) => t :: l)
       .foldLeft(acc)((acc, t) => f(t, acc))
 
   def count: Int = foldLeft(0)((_, count) => count + 1)
 
-  def flatten: List[T] = foldRight(_ :: _, List.empty)
+  def flatten: List[T] = foldRight(List.empty)(_ :: _)
 
   def map[U](f: T => U): Tree[U] =
     mapAccumulate(f = (_, e) => () -> f(e), ())._2

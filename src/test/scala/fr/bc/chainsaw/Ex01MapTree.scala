@@ -1,4 +1,4 @@
-package mb
+package fr.bc.chainsaw
 
 import TypedHomes.*
 import Helpers.{*, given}

@@ -1,11 +1,11 @@
 ThisBuild / scalaVersion := "3.3.1"
 ThisBuild / version := "0.1.0-SNAPSHOT"
-ThisBuild / organization := "mb"
-ThisBuild / organizationName := "example"
+ThisBuild / organization := "fr.baechler-craftsmanship"
+ThisBuild / organizationName := "chainsaw"
 
 lazy val root = (project in file("."))
   .settings(
-    name := "rosetree",
+    name := "chainsaw",
     libraryDependencies ++= Seq(
       "dev.zio" %% "zio" % "2.0.21",
       "dev.zio" %% "zio-test" % "2.0.21" % Test,

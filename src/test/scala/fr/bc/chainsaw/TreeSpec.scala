@@ -1,7 +1,7 @@
-package mb
+package fr.bc.chainsaw
 
 import cats.implicits.*
-import mb.Tree.Path
+import fr.bc.chainsaw.Tree.Path
 import zio.interop.*
 import zio.interop.catz.core.*
 import zio.test.*
@@ -257,7 +257,6 @@ object TreeSpec extends ZIOSpecDefault:
     ),
     suite("effect")(
       test("traverse") {
-        import mb.given
         val input = Tree(0, Tree(1, Tree(2)), Tree(3))
         for result <- input.traverse[UIO, Int](i => ZIO.succeed(i + 1))
         yield assert(result)(equalTo(Tree(1, Tree(2, Tree(3)), Tree(4))))

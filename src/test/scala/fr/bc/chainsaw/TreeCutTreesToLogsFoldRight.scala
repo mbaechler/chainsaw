@@ -1,7 +1,7 @@
-package mb
+package fr.bc.chainsaw
 
-import mb.Helpers.*
-import mb.Helpers.TreeHelpers.*
+import fr.bc.chainsaw.Helpers.*
+import fr.bc.chainsaw.Helpers.TreeHelpers.*
 import zio.ZIOAppDefault
 
 object TreeCutTreesToLogsFoldRight extends ZIOAppDefault:

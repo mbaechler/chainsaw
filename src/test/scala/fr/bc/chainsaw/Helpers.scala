@@ -1,7 +1,7 @@
-package mb
+package fr.bc.chainsaw
 
-import zio.IO
 import zio.Console.printLine
+import zio.IO
 
 import java.io.IOException
 

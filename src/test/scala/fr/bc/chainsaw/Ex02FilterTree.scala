@@ -1,8 +1,8 @@
-package mb
+package fr.bc.chainsaw
 
-import TypedHomes.*
-import Helpers.*
-import Helpers.TreeHelpers.*
+import fr.bc.chainsaw.Helpers.*
+import fr.bc.chainsaw.Helpers.TreeHelpers.*
+import fr.bc.chainsaw.TypedHomes.*
 
 object Ex02FilterTree extends zio.ZIOAppDefault:
 

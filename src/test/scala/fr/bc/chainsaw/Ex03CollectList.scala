@@ -1,8 +1,8 @@
-package mb
+package fr.bc.chainsaw
 
-import mb.Helpers.ListHelpers.show
-import mb.Helpers.*
-import mb.TypedHomes.*
+import fr.bc.chainsaw.Helpers.*
+import fr.bc.chainsaw.Helpers.ListHelpers.show
+import fr.bc.chainsaw.TypedHomes.*
 
 object Ex03CollectList extends zio.ZIOAppDefault:
 

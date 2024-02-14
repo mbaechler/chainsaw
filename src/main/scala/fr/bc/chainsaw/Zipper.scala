@@ -1,6 +1,6 @@
-package mb
+package fr.bc.chainsaw
 
-import mb.Zipper.Crumb
+import fr.bc.chainsaw.Zipper.Crumb
 
 object Zipper:
 

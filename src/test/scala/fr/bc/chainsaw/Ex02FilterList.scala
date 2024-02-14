@@ -1,8 +1,8 @@
-package mb
+package fr.bc.chainsaw
 
-import mb.Helpers.*
-import mb.Helpers.ListHelpers.show
-import mb.TypedHomes.*
+import fr.bc.chainsaw.Helpers.*
+import fr.bc.chainsaw.Helpers.ListHelpers.show
+import fr.bc.chainsaw.TypedHomes.*
 
 object Ex02FilterList extends zio.ZIOAppDefault:
 

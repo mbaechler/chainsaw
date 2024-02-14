@@ -1,6 +1,6 @@
-package mb
+package fr.bc.chainsaw
 
-import mb.TypedHomes.*
+import fr.bc.chainsaw.TypedHomes.*
 
 object Ex05FoldLeftTree extends zio.ZIOAppDefault:
 

@@ -1,8 +1,8 @@
-package mb
+package fr.bc.chainsaw
 
-import mb.Helpers.TreeHelpers.*
-import mb.Helpers.{*, given}
-import mb.TypedHomes.*
+import fr.bc.chainsaw.Helpers.TreeHelpers.*
+import fr.bc.chainsaw.Helpers.{*, given}
+import fr.bc.chainsaw.TypedHomes.*
 
 object Ex03CollectTree extends zio.ZIOAppDefault:
 

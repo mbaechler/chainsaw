@@ -1,9 +1,9 @@
-package mb
+package fr.bc.chainsaw
 
 import cats.syntax.traverse.*
-import mb.Helpers.TreeHelpers.show
-import mb.Helpers.*
-import mb.TypedHomes.*
+import fr.bc.chainsaw.Helpers.*
+import fr.bc.chainsaw.Helpers.TreeHelpers.show
+import fr.bc.chainsaw.TypedHomes.*
 import zio.interop.catz.core.*
 
 object Ex07TraverseTree extends zio.ZIOAppDefault:
